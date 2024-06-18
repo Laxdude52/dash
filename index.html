@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Plotly</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        h1 { text-align: center; }
+        .container { display: flex; justify-content: center; }
+        .column { display: flex; flex-direction: column; margin: 0 10px; }
+        .dropdown { margin: 5px 5px;}
+        .checkbox { margin: 10px;}
+    </style>
+</head>
+<body>
+<h1>Renewable Dashboard</h1>
+<div class = "container">
+    <div class="column">
+        <div class="dropdown">
+            <label for="dropdown1">Solar:</label>
+            <select id="dropdown1">
+                <option>Generation %</option>
+                <option>Generation (kW)</option>
+                <option>Solar Irradiance (GHI)</option>
+            </select>
+        </div>
+    <div class="dropdown">
+        <label for="dropdown3">Battery:</label>
+        <select id="dropdown3">
+            <option>State of Charge %</option>
+            <option>State of Health %</option>
+            <option>Power (kW)</option>
+            <option>Container 1 Temp (C)</option>
+            <option>Container 2 Temp (C)</option>
+            <option >Average Cell Voltage</option>
+        </select>
+    </div>
+    </div>
+    <div class="column">
+    <div class="dropdown">
+        <label for="dropdown2">Wind:</label>
+        <select id="dropdown2">
+            <option>Generation %</option>
+            <option>Generation (kW)</option>
+        </select>
+    </div>
+    <div class="dropdown">
+        <label for="dropdown4">Hydro:</label>
+        <select id="dropdown4">
+            <option>Output %</option>
+            <option>Output (kW)</option>
+            <option>OF Plant Flow</option>
+        </select>
+    </div>
+    </div>
+</div>
+<div id="topSet"></div>
+<div id="checkboxes">
+    <label class="checkbox"><input type="checkbox" id="toggleWind" checked> Wind</label>
+    <label class="checkbox"><input type="checkbox" id="toggleSolar" checked> Solar</label>
+    <label class="checkbox"><input type="checkbox" id="toggleHydro" checked> Hydro</label>
+    <label class="checkbox"><input type="checkbox" id="toggleBattery" checked> Battery</label>
+</div>
+<div id="multi-line-graph"></div>
+
+<script>
+    var gaugeData = [75, 50, 25, 100];
+
+    var traces = [
+        {
+            type: "indicator",
+            mode: "gauge+number",
+            value: gaugeData[0],
+            title: { text: "Solar" },
+            gauge: { axis: { range: [0, 100], visible: false } },
+            domain: { row: 0, column: 0 }
+        },
+        {
+            type: "indicator",
+            mode: "gauge+number",
+            value: gaugeData[1],
+            title: { text: "Wind" },
+            gauge: { axis: { range: [0, 100], visible: false } },
+            domain: { row: 0, column: 1 }
+        },
+        {
+            type: "indicator",
+            mode: "gauge+number",
+            value: gaugeData[2],
+            title: { text: "Battery" },
+            gauge: { axis: { range: [0, 100], visible: false } },
+            domain: { row: 1, column: 0 }
+        },
+        {
+            type: "indicator",
+            mode: "gauge+number",
+            value: gaugeData[3],
+            title: { text: "Hydro" },
+            gauge: { axis: { range: [0, 100], visible: false } },
+            domain: { row: 1, column: 1 }
+        }
+    ];
+
+    var layout = {
+        grid: { rows: 2, columns: 2, pattern: 'independent' },
+        autosize: true, margin: {b: 10, l: 0, r: 0, t: 35, pad: 0},
+        height: 200, width: 350
+    };
+
+    $('#dropdown1').on('change', function() {
+        updateAllGauges(overall_data, ohio_data);
+    });
+
+    $('#dropdown2').on('change', function() {
+        updateAllGauges(overall_data, ohio_data);
+    });
+
+    $('#dropdown3').on('change', function() {
+        updateAllGauges(overall_data, ohio_data);
+    });
+
+    $('#dropdown4').on('change', function() {
+        updateAllGauges(overall_data, ohio_data);
+    });
+    /*
+    const date = new Date();
+    let year = date.getFullYear();
+    let month = date.getMonth()+1;
+    let day = date.getDate();
+    let hour = date.getHours();
+    let minute = date.getMinutes();
+    let second = date.getSeconds();
+
+    let init_dateTime = `${year}-${month}-${day} ${hour}-${minute}-${second}`;
+    console.log(init_dateTime);
+    */
+
+    function condenseTime(time){
+        let date = new Date(time);
+        let year = date.getFullYear();
+        let month = date.getMonth()+1;
+        let day = date.getDate();
+        let hour = date.getHours();
+        let minute = date.getMinutes();
+        let second = date.getSeconds();
+        return `${year}-${month}-${day} ${hour}-${minute}-${second}`;
+    }
+
+    var multilineData = [
+        {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Wind',
+            line: { shape: 'spline' },
+            type: 'scatter'
+        },
+        {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Solar',
+            line: { shape: 'spline' },
+            type: 'scatter'
+        },
+        {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Hydro',
+            line: { shape: 'spline' },
+            type: 'scatter'
+        },
+        {
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            name: 'Battery',
+            line: { shape: 'spline' },
+            type: 'scatter'
+        }
+    ];
+
+    var multilineConfig = {
+        modeBarButtonsToRemove: ['toImage','zoom2d','lasso2d','zoomIn2d','zoomOut2d','resetScale2d', 'pan2d','toggleSpikelines','boxSelect', 'select2d'],
+        displaylogo: false
+    }
+
+    var multilineLayout = {
+        title: "Output %",
+        legend: {
+            y: 1, x: 0,
+            font: { size: 10 }
+        },
+        margin: {b: 120, l: 20, r: 20, t: 35, pad: 0},
+    };
+
+    class histData {
+        time = [];
+        solar = [];
+        wind = [];
+        battery = [];
+        hydro = [];
+        length = 0;
+
+        addValues(data) {
+            if(length === 0){
+
+                this.time.push(new Date(data["Time"]));
+                this.solar.push(data["Solar Generation (%)"]);
+                this.wind.push(data["Wind Generation (%)"]);
+                this.battery.push(data["Battery State of Charge (SOC %)"]);
+                this.hydro.push(data["Hydro Generation (%)"]);
+                length++;
+            }else if (this.time[length-1] !== data["Time"]) {
+                if (this.time.length > 15) {
+                    this.time.shift();
+                    this.solar.shift();
+                    this.wind.shift();
+                    this.battery.shift();
+                    this.hydro.shift();
+                    length--;
+                }
+                this.time.push(new Date(data["Time"]));
+                this.solar.push(data["Solar Generation (%)"]);
+                this.wind.push(data["Wind Generation (%)"]);
+                this.battery.push(data["Battery State of Charge (SOC %)"]);
+                this.hydro.push(data["Hydro Generation (%)"]);
+                length++;
+            }
+        }
+
+        getTime(){
+            return this.time;
+        }
+        getSolar(){
+            return this.solar;
+        }
+        getHydro(){
+            return this.hydro;
+        }
+        getWind(){
+            return this.wind;
+        }
+        getBattery(){
+            return this.battery;
+        }
+    }
+
+    var overall_data = [];
+    var ohio_data = [];
+    let historicalData = new histData();
+
+    // Fetch JSON data from the PHP script
+    function fetchJsonData() {
+        $.ajax({
+            url: 'fetch_json.php',
+            method: 'GET',
+            dataType: 'json',
+            success: function (data) {
+                overall_data = data[0][0];
+                ohio_data = data[1][0];
+                updateAllGauges(overall_data, ohio_data);
+                historicalData.addValues(overall_data);
+                updateMultiLine();
+            },
+            error: function (error) {
+                console.error('Error fetching JSON data:', error);
+            }
+        });
+    }
+
+    function updateMultiLine(){
+        let timeArray = [...historicalData.getTime()];
+        for (let i=0;i<timeArray.length;i++){
+            timeArray[i] = condenseTime(timeArray[i]);
+        }
+        let update = {
+            x: [timeArray, timeArray, timeArray, timeArray],
+            y: [historicalData.getWind(), historicalData.getSolar(), historicalData.getHydro(), historicalData.getBattery()],
+        }
+        Plotly.restyle('multi-line-graph', update, [0,1,2,3]);
+    }
+
+    function updateGauge(index, value) {
+        var update = {};
+        update['value'] = value;
+        Plotly.restyle('topSet', update, index);
+    }
+
+    function updateAllGauges(overall_data, ohio_data){
+        let dropdownChosen1 = String(document.querySelector('#dropdown1').value);
+        let dropdownChosen2 = String(document.querySelector('#dropdown2').value);
+        let dropdownChosen3 = String(document.querySelector('#dropdown3').value);
+        let dropdownChosen4 = String(document.querySelector('#dropdown4').value);
+
+        var chosenCol1;
+        var chosenCol2;
+        var chosenCol3;
+
+        if(dropdownChosen1 === "Generation %"){
+            chosenCol1 = "Solar Generation (%)";
+        }else if(dropdownChosen1 === "Generation (kW)"){
+            chosenCol1 = "Solar Generation (kW)";
+        }else{
+            chosenCol1 = "Solar Irradiance (GHI WM2)";
+        }
+
+        if(dropdownChosen2 === "Generation %"){
+            chosenCol2 = "Wind Generation (%)";
+        }else{
+            chosenCol2 = "Wind Generation (kW)";
+        }
+
+        if(dropdownChosen3 === "State of Charge %"){
+            chosenCol3 = "Battery State of Charge (SOC %)";
+        }else if(dropdownChosen3 === "State of Health %"){
+            chosenCol3 = "Battery State of Health (SOH %)";
+        }else if(dropdownChosen3 === "Power (kW)"){
+            chosenCol3 = "Battery Power (kW)";
+        }else if(dropdownChosen3 === "Container 1 Temp (C)"){
+            chosenCol3 = "Battery Container 1 Temp (C)";
+        }else if(dropdownChosen3 === "Container 2 Temp (C)"){
+            chosenCol3 = "Battery Container 2 Temp (C)";
+        }else{
+            chosenCol3 = "Battery Average Cell Voltage";
+        }
+
+        if(dropdownChosen4 === "Output %"){
+            updateGauge(3, overall_data["Hydro Generation (%)"]);
+        }else if(dropdownChosen4 === "Output (kW)"){
+            updateGauge(3, overall_data["Hydro Generation (kW)"]);
+        }else{
+            updateGauge(3, ohio_data["OhioFalls.U0.TOTAL-PLANT-FLOW"]);
+        }
+
+        updateGauge(0, overall_data[chosenCol1]);
+        updateGauge(1, overall_data[chosenCol2]);
+        updateGauge(2, overall_data[chosenCol3]);
+    }
+
+    fetchJsonData()
+    // Fetch JSON data every 10 seconds
+    setInterval(fetchJsonData, 10000);
+
+    Plotly.newPlot('topSet', traces, layout, { displaylogo: false });
+    Plotly.newPlot('multi-line-graph', multilineData, multilineLayout, multilineConfig);
+
+    $('#toggleWind').on('change', function() {
+        toggleTrace('Wind', this.checked);
+    });
+
+    $('#toggleSolar').on('change', function() {
+        toggleTrace('Solar', this.checked);
+    });
+
+    $('#toggleHydro').on('change', function() {
+        toggleTrace('Hydro', this.checked);
+    });
+
+    $('#toggleBattery').on('change', function() {
+        toggleTrace('Battery', this.checked);
+    });
+
+    function toggleTrace(traceName, visible) {
+        var update = {
+            'visible': visible ? true : 'legendonly'
+        };
+        Plotly.restyle('multi-line-graph', update, multilineData.map(function(trace, index) {
+            return trace.name === traceName ? index : -1;
+        }).filter(index => index !== -1));
+    }
+</script>
+</body>
+</html>
